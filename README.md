@@ -41,7 +41,7 @@ It currently supports:
 - configurable cooldown between logged events
 - optional preview window with bounding boxes
 
-On this machine, camera index `0` resolved to an OBS-style virtual camera source, while camera index `1` resolved to the real webcam. The default was changed to `1` so the app uses the physical camera by default in this environment.
+The camera index is configurable because different machines can expose different video devices.
 
 ## Repository Layout
 
@@ -74,7 +74,7 @@ Run with preview window:
 Useful options:
 
 ```bash
-./.venv/bin/python detect_and_log.py --camera-index 1
+./.venv/bin/python detect_and_log.py --camera-index 0
 ./.venv/bin/python detect_and_log.py --confidence 0.5
 ./.venv/bin/python detect_and_log.py --cooldown 5
 ```
