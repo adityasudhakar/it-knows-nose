@@ -1,86 +1,39 @@
-# Person Detection With Ultralytics YOLO
+# It Knows Nose
 
-This project is a local prototype that uses a Mac camera and Ultralytics YOLO to detect when a person is in frame, then optionally trigger Arduino-controlled servo motion.
+It Knows Nose is a small computer-vision and robotics prototype. A webcam detects a person's nose with Ultralytics YOLO pose estimation, then a Python script converts that nose position into pan/tilt commands for two Arduino-controlled SG90 servos.
 
-The story is staged deliberately:
-- Phase 1 proved the "eyes": live camera person detection and timestamped logging.
-- Phase 2, **Robot Greeter**, connects those eyes to motion by sending serial commands to an Arduino that drives servos.
+The project started as person detection and servo sweep experiments, then evolved into a nose-tracking pan/tilt pointer.
 
-## Current Scope
+## What It Does
 
-The repo now supports two modes:
-- Software-only detection and logging.
-- Person detection with Arduino serial actuation.
+- Captures webcam frames on a Mac.
+- Uses `yolov8n-pose.pt` to find the nose keypoint.
+- Smooths the detected nose position.
+- Converts camera pixel error into servo angle commands.
+- Sends compact serial commands like `87,35` to an Arduino.
+- Drives two servos:
+  - pin 9: pan, `0..180`
+  - pin 10: tilt, clamped to `10..90`
 
-What Phase 1 does:
-- Opens a local camera feed on macOS.
-- Runs a pre-trained Ultralytics YOLO model locally.
-- Detects the `person` class above a confidence threshold.
-- Logs detection events with timestamps.
+## Demo Videos
 
-What Phase 2 adds:
-- Opens an Arduino serial connection.
-- Requires a person to be detected for multiple consecutive frames before triggering.
-- Sends `SWEEP` when a person is confirmed.
-- Sends `STOP` when the person is lost for multiple frames.
-- Drives one-servo and dual-servo Arduino sweep sketches.
+- [Robot greeter demo 1](docs/videos/robot-greeter-demo-1.mov)
+- [Robot greeter demo 2](docs/videos/robot-greeter-demo-2.mov)
 
-This is still a prototype. It currently demonstrates detection-driven servo movement, not a finished autonomous water system.
+## Hardware
 
-## Phase 2: Robot Greeter
+- Mac with webcam
+- Arduino Uno
+- Two SG90 servos
+- Pan/tilt pointer mechanism
+- External servo power recommended
 
-Robot Greeter is the hardware-actuation phase. The same YOLO detector from Phase 1 now controls physical motion through an Arduino.
+## Software
 
-The current dual-servo demo performs a 5-cycle sweep when a person is detected. This keeps the hardware behavior bounded while validating that camera detection can trigger repeatable physical movement.
-
-Demo videos:
-
-- [Robot Greeter demo 1](docs/videos/robot-greeter-demo-1.mov)
-- [Robot Greeter demo 2](docs/videos/robot-greeter-demo-2.mov)
-
-## Why This Design
-
-The project starts with a standard person detector rather than an open-vocabulary model.
-
-Reasons:
-- It is simpler to get working end to end on a Mac.
-- It is lighter-weight for a first prototype.
-- It gives a stable baseline before introducing hardware or more flexible vision models.
-
-YOLO was chosen for the first pass because it is fast, well-supported, and already strong enough for the narrow requirement here: "is there a person in frame or not?"
-
-## Implementation Notes
-
-The software-only app is `detect_and_log.py`.
-
-It currently supports:
-- configurable camera index
-- configurable confidence threshold
-- configurable cooldown between logged events
-- optional preview window with bounding boxes
-
-The hardware actuation app is `detect_and_actuate.py`.
-
-It currently supports:
-- configurable camera index
-- configurable confidence threshold
-- configurable Arduino serial port
-- configurable serial baud rate
-- configurable consecutive detected-frame threshold
-- configurable consecutive lost-frame threshold
-- optional preview window with bounding boxes
-
-The camera index is configurable because different machines can expose different video devices.
-
-## Repository Layout
-
-- `detect_and_log.py`: webcam detection app
-- `detect_and_actuate.py`: webcam detection plus Arduino serial actuation app
-- `arduino/servo2_sweep_serial/`: one-servo serial sweep sketch
-- `arduino/dual_servo_sweep_serial/`: dual-servo bounded sweep sketch
-- `requirements.txt`: Python dependencies
-- `notes.md`: consolidated local project notes and planning
-- `docs/videos/`: demo videos
+- `track_nose_to_servos.py`: live nose tracking to pan/tilt servo commands
+- `arduino/dual_servo_position_serial/`: Arduino sketch that accepts `pan,tilt`
+- `detect_and_log.py`: earlier person-detection logger
+- `detect_and_actuate.py`: earlier detection-triggered servo sweep
 
 ## Setup
 
@@ -90,97 +43,33 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run Phase 1: Detection and Logging
-
-Default run:
+Upload the Arduino sketch:
 
 ```bash
-./.venv/bin/python detect_and_log.py
+arduino-cli compile --fqbn arduino:avr:uno arduino/dual_servo_position_serial
+arduino-cli upload -p /dev/cu.usbmodem14701 --fqbn arduino:avr:uno arduino/dual_servo_position_serial
 ```
 
-Run with preview window:
+Run the tracker:
 
 ```bash
-./.venv/bin/python detect_and_log.py --show-window
+./.venv/bin/python track_nose_to_servos.py --camera-index 0 --arduino-port /dev/cu.usbmodem14701
 ```
 
-Useful options:
+More responsive tuning used during testing:
 
 ```bash
-./.venv/bin/python detect_and_log.py --camera-index 0
-./.venv/bin/python detect_and_log.py --confidence 0.5
-./.venv/bin/python detect_and_log.py --cooldown 5
+./.venv/bin/python track_nose_to_servos.py \
+  --camera-index 0 \
+  --arduino-port /dev/cu.usbmodem14701 \
+  --pan-gain -0.08 \
+  --tilt-gain -0.08 \
+  --deadband-px 15 \
+  --max-step 8 \
+  --smooth-alpha 0.35 \
+  --update-hz 20
 ```
-
-## Run Phase 2: Robot Greeter
-
-1. Upload an Arduino sketch from `arduino/` to the connected board.
-2. Confirm the Arduino serial port.
-3. Run the actuation app:
-
-```bash
-./.venv/bin/python detect_and_actuate.py --arduino-port /dev/cu.usbmodem14701 --show-window
-```
-
-Useful options:
-
-```bash
-./.venv/bin/python detect_and_actuate.py --camera-index 0
-./.venv/bin/python detect_and_actuate.py --confidence 0.5
-./.venv/bin/python detect_and_actuate.py --detect-frames 2
-./.venv/bin/python detect_and_actuate.py --lost-frames 5
-```
-
-## Expected Behavior
-
-In Phase 1, when the app sees a person, it prints and logs a line like:
-
-```text
-2026-05-17T00:01:01 detected person
-```
-
-Runtime logs are written to `detections.log` when detections occur.
-
-In Phase 2, when the app confirms a person, it sends `SWEEP` to the Arduino and prints a line like:
-
-```text
-2026-05-17T00:01:01 person detected; dual-servo 5x sweep triggered
-```
-
-When the person is lost for the configured number of frames, it sends `STOP`.
-
-## Current Detection Screenshot
-
-This screenshot was captured from the live preview while testing in a dim room:
-
-![YOLO person detection demo](docs/camera-detection-demo.png)
-
-## Validation So Far
-
-The prototype has already been validated locally with:
-- live webcam activation
-- person detection in a dim room
-- timestamped detection logging
-- repeated detection tests by covering and uncovering the camera
-- Arduino serial commands from Python
-- one-servo sweep testing
-- dual-servo 5-cycle sweep testing
-- detection-triggered servo motion shown in the Robot Greeter demo videos
-
-## Behavioral Notes
-
-One behavioral note from testing: the current cooldown logic can retrigger while a person remains continuously present after the cooldown expires. That is acceptable for a first pass, but not ideal if the intended behavior is "log only when a person disappears and reappears."
-
-## Future Plan
-
-### Later: Detection + Water Shooting Hardware
-
-Robot Greeter validates detection-triggered motion. A later phase can decide whether to add pump, relay, or water actuation hardware.
-
-Planned additions:
-- safety checks before actuation
-- retention of the same detection pipeline from step 1
 
 ## Notes
 
-The fuller working notes for this prototype are in `notes.md`.
+The YOLO model files are downloaded at runtime and ignored by Git. The project keeps the Arduino simple: it receives final servo angles, while Python handles vision, smoothing, limits, and tuning.

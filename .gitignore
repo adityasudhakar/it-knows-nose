@@ -4,4 +4,5 @@
 __pycache__/
 *.pyc
 detections.log
-yolov8n.pt
+*.pt
+*.torchscript
