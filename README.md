@@ -73,3 +73,10 @@ More responsive tuning used during testing:
 ## Notes
 
 The YOLO model files are downloaded at runtime and ignored by Git. The project keeps the Arduino simple: it receives final servo angles, while Python handles vision, smoothing, limits, and tuning.
+
+## Demo
+
+Nose-tracking pan/tilt servo prototype demo:
+
+[Watch the demo video](assets/nose-tracking-demo-2026-06-03.mp4)
+
