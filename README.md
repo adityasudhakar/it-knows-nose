@@ -15,11 +15,6 @@ The project started as person detection and servo sweep experiments, then evolve
   - pin 9: pan, `0..180`
   - pin 10: tilt, clamped to `10..90`
 
-## Demo Videos
-
-- [Robot greeter demo 1](docs/videos/robot-greeter-demo-1.mov)
-- [Robot greeter demo 2](docs/videos/robot-greeter-demo-2.mov)
-
 ## Hardware
 
 - Mac with webcam
@@ -78,5 +73,6 @@ The YOLO model files are downloaded at runtime and ignored by Git. The project k
 
 Nose-tracking pan/tilt servo prototype demo:
 
-[Watch the demo video](assets/nose-tracking-demo-2026-06-03.mp4)
+[Watch demo video 1](assets/nose-tracking-demo-2026-06-03.mp4)
+- [Watch demo video 2](assets/nose-tracking-demo-2026-06-03-2.mp4)
 
